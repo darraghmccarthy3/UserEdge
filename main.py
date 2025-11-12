@@ -1,11 +1,4 @@
-""" NiceGUI Admin app for managing Users (PostgreSQL) and Logging in on Raspberry Pi.
-Requirements (install):
-pip install nicegui psycopg[binary] bcrypt python-dotenv
-Notes: - Uses psycopg3.
-- Sets users.updated_at on create/update.
-- Passwords are stored as bcrypt hashes. When editing a user, leave "New Password" blank to keep the existing hash.
-- Roles: enter comma-separated values; saved as text[] in PostgreSQL.
-"""
+
 from nicegui import ui
 from dotenv import load_dotenv
 from db_connector_pg import PostgresConnector
@@ -33,10 +26,10 @@ def main():
         UsersPage(repo)
 
 
-@ui.page('/rpi-login')
-def rpi_login():
-    from rpi_login_page import RpiLoginPage
-    RpiLoginPage(repo)
+#@ui.page('/rpi-login')
+#def rpi_login():
+   #from rpi_login_page import RpiLoginPage
+   # RpiLoginPage(repo)
 
 
 if __name__ in {'__main__', '__mp_main__'}:

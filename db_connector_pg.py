@@ -90,3 +90,52 @@ class PostgresConnector:
         """Permanently deletes a user from the database."""
         with self.get_conn() as conn, conn.cursor() as cur:
             cur.execute("DELETE FROM public.users WHERE id=%s", (user_id,))
+
+#region ------ authentication methods against users_edge_pub ------
+def db_health(self) -> str:
+    """Short health string; useful for status badge."""
+    with self.get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SELECT NOW() AS now")
+        return f"DB OK · {cur.fetchone()['now']}"
+
+def get_users_last_updated_at(self) -> Optional[datetime]:
+    """Newest users.updated_at (coarse 'last sync' indicator)."""
+    with self.get_conn() as conn, conn.cursor() as cur:
+        cur.execute("SELECT MAX(updated_at) AS m FROM public.users_edge_pub")
+        row = cur.fetchone()
+        return row['m'] if row else None
+
+def get_user_by_id(self, user_id: str) -> Optional[User]:
+    sql = "SELECT * FROM public.users_edge_pub WHERE id = %s"
+    with self.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(sql, (user_id,))
+        row = cur.fetchone()
+        return User.from_row(row) if row else None
+
+def authenticate_user(self, username: str, password: str) -> Optional[User]:
+    """Return a User if credentials are valid (and NOT soft-deleted), else None.
+    NOTE: For safety, the returned User has password_hash=None.
+    """
+    sql = """
+        SELECT id, username, password_hash, roles, updated_at, deleted_at
+        FROM public.users_edge_pub
+        WHERE username = %s AND deleted_at IS NULL
+        LIMIT 1
+    """
+    with self.get_conn() as conn, conn.cursor() as cur:
+        cur.execute(sql, (username.strip(),))
+        row = cur.fetchone()
+
+    try:
+        ok = bcrypt.checkpw(password.encode('utf-8'), row['password_hash'].encode('utf-8'))
+    except Exception:
+        ok = False
+
+    if not ok:
+        return None
+
+    # Build a typed domain object and scrub the hash before returning
+    user = User.from_row(row)
+    user.password_hash = None
+    return user
+#endregion
